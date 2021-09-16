@@ -54,19 +54,18 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
             frame_index = 0
             # bboxes = np.load(os.path.join(test_bboxes,bboxes_list[video_num] ), allow_pickle=True) 
 
-        # frames = frames.cuda()
-        # flow = flow.cuda()
-        # input = frames[:, :-1, ]
-        # target = frames[:, -1, ]
+        frames = frames.cuda()
+        flow = flow.cuda()
+        input = frames[:, :-1, ]
+        target = frames[:, -1, ]
 
-        # try:
-        #     objects = objects.cuda()
-        #     outputs = generator(input, objects[:,:,2])
-        # except:
-        #     output = generator(input, None)          
-        import random
-        mse_imgs = random.random()
-        # mse_imgs = object_loss((outputs + 1) / 2, (target + 1) / 2, flow, bboxes).item()
+        try:
+            objects = objects.cuda()
+            outputs = generator(input, objects[:,:,2])
+        except:
+            output = generator(input, None)          
+
+        mse_imgs = object_loss((outputs + 1) / 2, (target + 1) / 2, flow, bboxes).item()
         psnr_list[ sorted(videos.keys())[video_num] ].append(utils.psnr(mse_imgs))
         
     # normalize and evaluate
@@ -77,9 +76,9 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
     #         if len(frame_bboxes) == 0 :
     #             psnr_list[video_name][i] = maxpsnr
         
-        # smooth:
-        if dataset == "ShanghaiTech":
-            psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
+        # # smooth:
+        # if dataset == "ShanghaiTech":
+        #     psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
 
         if dataset == "ped2" or dataset == "ShanghaiTech": 
             anomaly_score_total_list += utils.anomaly_score_list(psnr_list[video_name])

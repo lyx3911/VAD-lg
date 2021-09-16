@@ -81,8 +81,8 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
         #         psnr_list[video_name][i] = maxpsnr
         
         # smooth:
-        if dataset == "ShanghaiTech":
-            psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
+        # if dataset == "ShanghaiTech":
+        #     psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
 
         if dataset == "ped2" or dataset == "ShanghaiTech": 
             anomaly_score_total_list += utils.anomaly_score_list(psnr_list[video_name])
