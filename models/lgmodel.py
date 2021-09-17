@@ -237,15 +237,13 @@ class ResnetAttentionGenerator(nn.Module):
         object_feat = self.GAP(object_feat).squeeze(-1).squeeze(-1)  # [N, c]
         # print("object_feat.shape: ", object_feat.shape)
 
-        flow_feat = self.flow_feature_extractor(flows)
+        flow_feat, flow_out = self.flow_feature_extractor(flows)
         flow_feat = self.GAP(flow_feat).squeeze(-1).squeeze(-1)
         # print("flow_feat.shape: ", flow_feat.shape)
 
         # 生成邻接矩阵然后采用GAT聚合特征，这里暂且写个草稿
         position_embedding = self.adjGenerator.cal_position_embedding(rois, rois)
         adj = self.adjGenerator(flow_feat, flow_feat, position_embedding) # [N, gap.nclass, N]
-        # 按照我的理解，这里应该在dim=1的地方取个平均，不然后面adj的维度就不对了
-        adj = torch.mean(adj, dim=1)
         # print("adj.shape: ", adj.shape)
 
         box_feature_aggr = self.GAT(object_feat, adj)   # [N, F=gap.nclass]
@@ -264,7 +262,7 @@ class ResnetAttentionGenerator(nn.Module):
         out = self.de_model(out_recurrent)
         # print(out.shape)
 
-        return out
+        return out, flow_out
 
 
 
@@ -373,7 +371,26 @@ class FlowFeatureExtractor(nn.Module):
 
         self.model = nn.Sequential(*model)
 
-    def forward(self, input):    # input: N x T x c x h x w 
-        z = self.model(input)    # z: (N * T) x (ngf * 2 ** n_downsampling) x h' x w'
+        de_model = [nn.Conv2d(ngf * mult, ngf * mult, kernel_size=3, padding=1, bias=use_bias),
+                    norm_layer(ngf * mult),
+                    nn.ReLU(True)]
 
-        return z
+        for i in range(n_downsampling):  # add upsampling layers
+            mult = 2 ** (n_downsampling - i)
+            de_model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                            kernel_size=3, stride=2,
+                                            padding=1, output_padding=1,
+                                            bias=use_bias),
+                         norm_layer(int(ngf * mult / 2)),
+                         nn.ReLU(True)]
+        de_model += [nn.ReflectionPad2d(3)]
+        de_model += [nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0)]
+        de_model += [nn.Tanh()]
+
+
+        self.demodel = nn.Sequential(*de_model)
+
+    def forward(self, input):    # input: N x T x c x h x w 
+        feat = self.model(input)    # z: (N * T) x (ngf * 2 ** n_downsampling) x h' x w'
+        out =self.demodel(feat) 
+        return feat, out

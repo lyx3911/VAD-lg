@@ -63,9 +63,9 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
 
         try:
             objects = objects.cuda()
-            outputs = generator(input, objects[:,:,2], rois, objects_flow)
+            outputs, flow_out = generator(input, objects[:,:,2], rois, objects_flow)
         except:
-            output = generator(input, None, rois, objects_flow)          
+            output, flow_out = generator(input, None, rois, objects_flow)          
 
 
         mse_imgs = object_loss((outputs + 1) / 2, (target + 1) / 2, flow, bboxes).item()
@@ -75,7 +75,7 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
     anomaly_score_total_list = []
     for video_name in sorted(videos.keys()):
         # video_bboxes = np.load("./bboxes/{}/test/{}.npy".format(dataset, video_name), allow_pickle=True)
-        maxpsnr = np.max(psnr_list[video_name])
+        # maxpsnr = np.max(psnr_list[video_name])
         # for i, frame_bboxes in enumerate(video_bboxes):
         #     if len(frame_bboxes) == 0 :
         #         psnr_list[video_name][i] = maxpsnr
@@ -84,14 +84,15 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
         # if dataset == "ShanghaiTech":
         #     psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
 
-        if dataset == "ped2" or dataset == "ShanghaiTech": 
-            anomaly_score_total_list += utils.anomaly_score_list(psnr_list[video_name])
-        elif dataset == "avenue":    
-            anomaly_score_total_list += psnr_list[video_name]
+    #     if dataset == "ped2" or dataset == "ShanghaiTech": 
+    #         anomaly_score_total_list += utils.anomaly_score_list(psnr_list[video_name])
+    #     elif dataset == "avenue":    
+    #         anomaly_score_total_list += psnr_list[video_name]
 
-    if dataset == "avenue":
-        anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
-
+    # if dataset == "avenue":
+    #     anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
+        anomaly_score_total_list += psnr_list[video_name]
+    anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
     # TODO
     anomaly_score_total_list = np.asarray(anomaly_score_total_list)    
     frame_AUC = utils.AUC(anomaly_score_total_list, np.expand_dims(1 - labels_list, 0))

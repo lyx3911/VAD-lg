@@ -158,13 +158,15 @@ def train(config, weight):
             target = frames[:, -1, ]
             if not objects == None:
                 objects = objects.cuda()
-                outputs = model(input, objects[:,:,2], rois, objects_flow)
+                outputs, flow_out = model(input, objects[:,:,2], rois, objects_flow)
             else:
-                outputs = model(input, None, bbox, None)
+                outputs, flow_out = model(input, None, bbox, None)
 
             g_object_loss = object_loss(outputs, target, flow, bbox)
             g_gd_loss = gd_loss(outputs, target)
-            g_loss = lam_gd * g_gd_loss + lam_int * g_object_loss
+            flow_loss = int_loss(objects_flow, flow_out)
+            g_loss = lam_gd * g_gd_loss + lam_int * g_object_loss + flow_loss
+            
 
             optimizer_G.zero_grad()
             g_loss.backward()

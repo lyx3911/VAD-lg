@@ -163,6 +163,8 @@ class AdjGenerator(nn.Module):
         weighted_aff = (aff_weight + 1e-6).log() + aff_scale
         # aff_softmax = F.softmax(weighted_aff, dim=2)
         aff_sigmoid = self.sigmoid(weighted_aff).squeeze(1)   # 用sigmoid函数输出0-1的值
+        # 取平均
+        aff_sigmoid = torch.mean(aff_sigmoid, dim=1)
         adj = torch.where(aff_sigmoid > 0.5, 1., 0.)   # 大于0.5设为1，小于0.5设为0
 
         return adj
