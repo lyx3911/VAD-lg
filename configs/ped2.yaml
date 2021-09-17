@@ -6,8 +6,8 @@ test_dataset_args: {augment: aug1, h: 256, w: 256, c: 3, t_length: 5, batch_size
 
 label_path: /data0/lyx/VAD/vad-attention/data/ped2_frame_labels.mat
 
-train_bboxes_path: /data0/lyx/VAD/vad-attention/bboxes/ped2/train
-test_bboxes_path: /data0/lyx/VAD/vad-attention/bboxes/ped2/test
+train_bboxes_path: ./bboxes/ped2/train
+test_bboxes_path: ./bboxes/ped2/test
 train_flow_path: /data0/lyx/VAD/vad-attention/flow/ped2/train
 test_flow_path: /data0/lyx/VAD/vad-attention/flow/ped2/test
 

@@ -166,10 +166,14 @@ def get_motion_roi(img_batch, bboxes, dataset_name):
     return fg_bboxes
 
 
-def draw_bbox(img, b_box, color, width):
+def draw_bbox(img, b_box, color=(255, 0, 0), width=1):
     for box in b_box:
         (xmin, ymin, xmax, ymax) = box 
-        print(box)
+        xmin = int(xmin)
+        ymin = int(ymin)
+        xmax = int(xmax)
+        ymax = int(ymax)
+        # print(box)
         cv2.rectangle(img,(xmin,ymin),(xmax,ymax), color,width)
     return img
 
@@ -219,16 +223,17 @@ def YoloRoI(frames, dataset, model, device):
     return yolo_boxes
 
 def RoI(frames, dataset, model, device):
-    yolo_boxes = get_yolo_roi(frames[int(len(frames)/2)], model, device, dataset)
+    yolo_boxes = get_yolo_roi(frames[0], model, device, dataset)
     yolo_boxes = delCoverBboxes(yolo_boxes, dataset)
-    motion_boxes = get_motion_roi(frames, yolo_boxes, dataset)
-    bboxes = delCoverBboxes(yolo_boxes+motion_boxes, dataset)
-    return bboxes
+    return yolo_boxes
+    # motion_boxes = get_motion_roi(frames, yolo_boxes, dataset)
+    # bboxes = delCoverBboxes(yolo_boxes+motion_boxes, dataset)
+    # return bboxes
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--weight", default='yolov5/weights/yolov5s.pt')
-    parser.add_argument("--datadir", default="../../VAD_datasets/ped2/training/frames")
+    parser.add_argument("--datadir", default="/data0/lyx/VAD_datasets/ped2/training/frames")
     parser.add_argument("--datatype", default="ped2")
     parser.add_argument("--gpu", default=None)
     parser.add_argument("--save_path", default="./bboxes/ped2/train/")

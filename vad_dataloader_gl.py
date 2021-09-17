@@ -129,14 +129,14 @@ class VadDataset(data.Dataset):
 
         if self.flow_folder is not None:  # 已经提取好了，直接读出来
             # last_frame_flow = torch.load(self.videos[video_name]['flow'][frame_name + self._time_step - 1])
-            last_frame_flow = torch.load(self.videos[video_name]['flow'][frame_name])
+            frame_flow = torch.load(self.videos[video_name]['flow'][frame_name + self._time_step-1])
 
         else:
-            last_frame_flow = get_frame_flow(self.videos[video_name]['frame'][frame_name + self._time_step - 1],
+            frame_flow = get_frame_flow(self.videos[video_name]['frame'][frame_name + self._time_step - 1],
                                              self.videos[video_name]['frame'][frame_name + self._time_step],
                                              self.flownet,
                                              self.device, 512, 384)
-        trans_flow = last_frame_flow.unsqueeze(0)
+        trans_flow = frame_flow.unsqueeze(0)
         trans_flow = F.interpolate(trans_flow, size=([self._resize_width, self._resize_height]), mode='bilinear', align_corners=False)
         trans_flow = trans_flow.squeeze(0)
 
@@ -152,20 +152,28 @@ class VadDataset(data.Dataset):
 
         object_batch = []
         flow_batch = []
+        # for bbox in bboxes:
+        #     # img
+        #     one_object_batch = []
+        #     for i in range(self._time_step + self._num_pred):
+        #         image = np_load_frame_roi(self.videos[video_name]['frame'][frame_name + i], 64,
+        #                                   64, bbox)  # 这里的64是裁剪框的resize
+        #         if self.transform is not None:
+        #             one_object_batch.append(self.transform(image))
+        #     one_object_batch = torch.stack(one_object_batch, dim=0)
+        #     # print("object_batch.shape: ", object_batch.shape)
+        #     object_batch.append(one_object_batch)
+
+        # only the first frame objects
         for bbox in bboxes:
-            # img
-            one_object_batch = []
-            for i in range(self._time_step + self._num_pred):
-                image = np_load_frame_roi(self.videos[video_name]['frame'][frame_name + i], 64,
-                                          64, bbox)  # 这里的64是裁剪框的resize
-                if self.transform is not None:
-                    one_object_batch.append(self.transform(image))
-            one_object_batch = torch.stack(one_object_batch, dim=0)
-            # print("object_batch.shape: ", object_batch.shape)
-            object_batch.append(one_object_batch)
+            image = np_load_frame_roi(self.videos[video_name]['frame'][frame_name+self._time_step+self._num_pred-1],64,64,bbox)
+            if self.transform is not None:
+                image = self.transform(image)
+            object_batch.append(image)
 
         for bbox in trans_bboxes:
-            flow_ = trans_flow[:, bbox[0]:bbox[2], bbox[1]:bbox[3]]
+            # flow_ = trans_flow[:, bbox[0]:bbox[2], bbox[1]:bbox[3]]
+            flow_ = trans_flow[:, bbox[1]:bbox[3], bbox[0]:bbox[2]]
             flow_ = F.interpolate(flow_.unsqueeze(0), size=([64, 64]), mode='bilinear', align_corners=False)
             # print(flow_.shape)
             flow_batch.append(flow_.squeeze(0))
@@ -199,7 +207,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     batch_size = 1
-    datadir = "/data0/lyx/VAD_datasets/ShanghaiTech/training/frames"
+    datadir = "/data0/lyx/VAD_datasets/avenue/training/frames"
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # flow 和 yolo 在线计算
@@ -208,7 +216,7 @@ if __name__ == "__main__":
     #                         resize_height=256, resize_width=256)
 
     # 使用保存的.npy
-    train_data = VadDataset(args,video_folder= datadir, bbox_folder = "./bboxes/ShanghaiTech/train", flow_folder="./flow/ShanghaiTech/train",
+    train_data = VadDataset(args,video_folder= datadir, bbox_folder = "./bboxes/avenue/train", flow_folder="/data0/lyx/VAD/vad-attention/flow/avenue/train",
                             transform=transforms.Compose([transforms.ToTensor()]),
                             resize_height=256, resize_width=256)
 
@@ -225,4 +233,17 @@ if __name__ == "__main__":
     #                         device = device)
 
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
+
+    for i, (frame_batch, object_batch, trans_bboxes, trans_flow, flow_batch) in enumerate(train_loader):
+        print(flow_batch.shape)
+        from flownet2.utils_flownet2 import flow_utils
+        for index, flow in enumerate(flow_batch[0]):
+            print(flow.shape)
+            flow_img = flow_utils.flow2img(flow.numpy().transpose(1,2,0))
+            plt.imsave('./tmp/flow-{}.jpg'.format(index), flow_img)
+        flow = flow_utils.flow2img(trans_flow.squeeze(0).numpy().transpose(1,2,0))
+        plt.imsave("./tmp/flow.jpg", flow)
+        plt.imsave("./tmp/flow_box.jpg", draw_bbox(flow,trans_bboxes))
+        break
+
 

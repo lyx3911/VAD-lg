@@ -158,7 +158,7 @@ def train(config, weight):
             target = frames[:, -1, ]
             if not objects == None:
                 objects = objects.cuda()
-                outputs, flow_out = model(input, objects[:,:,2], rois, objects_flow)
+                outputs, flow_out = model(input, objects, rois, objects_flow)
             else:
                 outputs, flow_out = model(input, None, bbox, None)
 

@@ -63,7 +63,7 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
 
         try:
             objects = objects.cuda()
-            outputs, flow_out = generator(input, objects[:,:,2], rois, objects_flow)
+            outputs, flow_out = generator(input, objects, rois, objects_flow)
         except:
             output, flow_out = generator(input, None, rois, objects_flow)          
 
