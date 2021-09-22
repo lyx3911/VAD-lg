@@ -241,9 +241,16 @@ if __name__ == "__main__":
             print(flow.shape)
             flow_img = flow_utils.flow2img(flow.numpy().transpose(1,2,0))
             plt.imsave('./tmp/flow-{}.jpg'.format(index), flow_img)
+            img = object_batch[0][index].numpy().transpose(1,2,0)
+            img = img*255
+            img = np.asarray(img, dtype=np.uint8)
+            cv2.imwrite('./tmp/rgb-{}.jpg'.format(index), img)
         flow = flow_utils.flow2img(trans_flow.squeeze(0).numpy().transpose(1,2,0))
         plt.imsave("./tmp/flow.jpg", flow)
         plt.imsave("./tmp/flow_box.jpg", draw_bbox(flow,trans_bboxes))
+        frame_batch = frame_batch*255
+        cv2.imwrite("./tmp/frame.jpg", np.asarray(frame_batch[0][0].numpy().transpose(1,2,0), dtype=np.uint8))
+        
         break
 
 

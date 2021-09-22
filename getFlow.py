@@ -12,6 +12,8 @@ from flownet2.utils_flownet2.frame_utils import read_gen  # the path is depended
 from flownet2.utils_flownet2 import flow_utils, tools
 import torchvision.transforms as transforms
 
+from tqdm import tqdm
+
 def writeFlow(name, flow):
     # np.save(name, flow)
     torch.save(flow, name)
@@ -50,8 +52,8 @@ if __name__ == '__main__':
     parser.add_argument('--fp16', action='store_true', help='Run model in pseudo-fp16 mode (fp16 storage fp32 math).')
     parser.add_argument("--rgb_max", type=float, default=255.)
     parser.add_argument("--weight", default='flownet2/FlowNet2_checkpoint.pth.tar')
-    parser.add_argument("--datadir", default="../../VAD_datasets/ped2/training/frames")
-    parser.add_argument("--save_path", default="./flow/ped2/train/")
+    parser.add_argument("--datadir", default="/data0/lyx/VAD_datasets/ShanghaiTech/training/frames")
+    parser.add_argument("--save_path", default="/data2/lyx/flow/ShanghaiTech/train/")
     args = parser.parse_args()
     # print(args)
 
@@ -66,7 +68,7 @@ if __name__ == '__main__':
     videos = args.datadir
     save_path = args.save_path
     video_list = sorted(os.listdir(videos))
-    for video in video_list:
+    for video in tqdm(video_list):
         frame_list = sorted(os.listdir(os.path.join(videos, video)))
         for i in range( 0, len(frame_list)-1 ):
             frame1 = os.path.join(videos, video, frame_list[i])

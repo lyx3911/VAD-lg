@@ -170,37 +170,35 @@ def train(config, weight):
             optimizer_G.step()
 
             train_psnr = utils.psnr_error(outputs,target)
-            # break
-            # Save the model
-            if (epoch*len(train_dataset)+j % save_epoch == 0 and epoch*len(train_dataset)+j!=0)or epoch == config['epochs'] - 1:
-                utils.log('----------------------------------------')
-                utils.log('Epoch:' + str(epoch + 1))
-                utils.log('----------------------------------------')
-                utils.log('Loss: Reconstruction {:.6f}'.format(g_loss.item()))
-                # Testing
-                utils.log('Evaluation of ' + config['test_dataset_type']) 
-                if not os.path.exists(save_path):
-                    os.makedirs(save_path) 
-                if not os.path.exists(os.path.join(save_path, "models")):
-                    os.makedirs(os.path.join(save_path, "models")) 
-                frame_AUC,  psnr_list = ObjectLoss_evaluate(test_dataloader, model, labels_list, videos, dataset=config['test_dataset_type'],device = device,
-                    frame_height = train_dataset_args['h'], frame_width=train_dataset_args['w']) 
-                
-                torch.save(model.state_dict(), os.path.join(save_path, 'models/model-epoch-{}-{}.pth'.format(epoch,j)))
+            # break          
 
-                utils.log('The result of ' + config['test_dataset_type'])
-                utils.log("AUC: {}%".format(frame_AUC*100))
+        lr_scheduler.step() 
 
-                if frame_AUC > max_frame_AUC:
-                    max_frame_AUC = frame_AUC
-                    torch.save(model.state_dict(), os.path.join(save_path, 'models/max-frame_auc-model.pth'))
+        # Save the model
+        if epoch % save_epoch == 0 or epoch == config['epochs'] - 1:
+            utils.log('----------------------------------------')
+            utils.log('Epoch:' + str(epoch + 1))
+            utils.log('----------------------------------------')
+            utils.log('Loss: Reconstruction {:.6f}'.format(g_loss.item()))
+            # Testing
+            utils.log('Evaluation of ' + config['test_dataset_type']) 
+            if not os.path.exists(save_path):
+                os.makedirs(save_path) 
+            if not os.path.exists(os.path.join(save_path, "models")):
+                os.makedirs(os.path.join(save_path, "models")) 
+            frame_AUC,  psnr_list = ObjectLoss_evaluate(test_dataloader, model, labels_list, videos, dataset=config['test_dataset_type'],device = device,
+                frame_height = train_dataset_args['h'], frame_width=train_dataset_args['w']) 
             
-                utils.log('----------------------------------------')
+            torch.save(model.state_dict(), os.path.join(save_path, 'models/model-epoch-{}-{}.pth'.format(epoch,j)))
 
-        lr_scheduler.step()
+            utils.log('The result of ' + config['test_dataset_type'])
+            utils.log("AUC: {}%".format(frame_AUC*100))
 
-
+            if frame_AUC > max_frame_AUC:
+                max_frame_AUC = frame_AUC
+                torch.save(model.state_dict(), os.path.join(save_path, 'models/max-frame_auc-model.pth'))
         
+            utils.log('----------------------------------------')      
 
     utils.log('Training is finished')
     utils.log('max_frame_AUC: {}'.format(max_frame_AUC))
@@ -225,5 +223,7 @@ if __name__ == '__main__':
         config['_gpu'] = args.gpu
     else:
         torch.cuda.set_device(int(args.gpu))
+
+    config['save_path'] += args.tag
     utils.set_gpu(args.gpu)
     train(config, args.weight)

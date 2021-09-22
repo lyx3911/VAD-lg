@@ -252,6 +252,9 @@ class ResnetAttentionGenerator(nn.Module):
         #聚合完了后续就类似地聚合全局特征
         attention_map = self.cal_attention(frame_med_feat, box_feature_aggr)
         z = attention_map * frame_feat
+        
+        # # 对比实验
+        # z = frame_feat
 
         # print("z.shape: ", z.shape)
         

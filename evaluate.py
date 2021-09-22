@@ -80,15 +80,15 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
         # if dataset == "ShanghaiTech":
         #     psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
 
-        if dataset == "ped2" or dataset == "ShanghaiTech": 
+        if dataset == "ped2" or dataset == "ShanghaiTech" or dataset=="avenue": 
             anomaly_score_total_list += utils.anomaly_score_list(psnr_list[video_name])
-        elif dataset == "avenue":
-            print(len(anomaly_score_total_list))
-            print(len(psnr_list[video_name]))    
-            anomaly_score_total_list += psnr_list[video_name]
+        # elif dataset == "avenue":
+        #     print(len(anomaly_score_total_list))
+        #     print(len(psnr_list[video_name]))    
+        #     anomaly_score_total_list += psnr_list[video_name]
 
-    if dataset == "avenue":
-        anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
+    # if dataset == "avenue":
+    #     anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
 
     # TODO
     anomaly_score_total_list = np.asarray(anomaly_score_total_list)    
