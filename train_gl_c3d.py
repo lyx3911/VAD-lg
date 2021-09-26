@@ -19,10 +19,10 @@ from flownet2.models import FlowNet2
 import utils
 from models.lgmodel import define_G
 from losses import *
-from vad_dataloader_gl import VadDataset
+from vad_dataloader_gl_c3d import VadDataset
 
 import torchvision.transforms as transforms
-from evaluate_gl import *
+from evaluate_gl_c3d import *
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -100,7 +100,7 @@ def train(config, weight):
     # init model
     ngf = 64
     # netG = 'resnet_6blocks_attention'
-    netG = "resnet_6blocks_attention"
+    netG = "C3D_attention"
     norm = 'instance'
     dropout = True
     init_type = 'normal'
@@ -159,6 +159,7 @@ def train(config, weight):
             target = frames[:, -1, ]
             if min(objects.shape) != 0:
                 objects = objects.cuda()
+                objects = objects[:,:,:-1]
                 outputs, flow_out = model(input, objects, rois, objects_flow)
                 g_object_loss = object_loss(outputs, target, flow, bbox)
                 g_gd_loss = gd_loss(outputs, target)

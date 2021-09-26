@@ -185,7 +185,7 @@ class VadDataset(data.Dataset):
             return frame_batch, object_batch, trans_bboxes, trans_flow, flow_batch
         except:
             # print("object is none")
-            return frame_batch, None, trans_bboxes, trans_flow, None
+            return frame_batch, torch.tensor([]), trans_bboxes, trans_flow, torch.tensor([])
 
     def __len__(self):
         return len(self.samples)

@@ -18,7 +18,7 @@ from torch.autograd import Variable
 from models.lgmodel import define_G
 
 import utils
-from vad_dataloader_gl import VadDataset
+from vad_dataloader_gl_c3d import VadDataset
 from losses import *
 
 import torchvision.transforms as transforms
@@ -66,7 +66,7 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
 
         if min(objects.shape) != 0:
             objects = objects.cuda()
-            outputs, flow_out = generator(input, objects[:,:,:-1], rois, objects_flow)
+            outputs, flow_out = generator(input, objects, rois, objects_flow)
             mse_imgs = object_loss((outputs + 1) / 2, (target + 1) / 2, flow, bboxes).item()
             psnr_list[ sorted(videos.keys())[video_num] ].append(utils.psnr(mse_imgs))
         else:

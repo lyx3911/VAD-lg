@@ -129,16 +129,18 @@ class VadDataset(data.Dataset):
 
         if self.flow_folder is not None:  # 已经提取好了，直接读出来
             # last_frame_flow = torch.load(self.videos[video_name]['flow'][frame_name + self._time_step - 1])
-            last_frame_flow = torch.load(self.videos[video_name]['flow'][frame_name])
+            frame_flow = torch.load(self.videos[video_name]['flow'][frame_name + self._time_step-1])
 
         else:
-            last_frame_flow = get_frame_flow(self.videos[video_name]['frame'][frame_name + self._time_step - 1],
+            frame_flow = get_frame_flow(self.videos[video_name]['frame'][frame_name + self._time_step - 1],
                                              self.videos[video_name]['frame'][frame_name + self._time_step],
                                              self.flownet,
                                              self.device, 512, 384)
-        trans_flow = last_frame_flow.unsqueeze(0)
+        trans_flow = frame_flow.unsqueeze(0)
         trans_flow = F.interpolate(trans_flow, size=([self._resize_width, self._resize_height]), mode='bilinear', align_corners=False)
         trans_flow = trans_flow.squeeze(0)
+
+        # print(trans_flow.shape)
 
         frame_batch = []
         for i in range(self._time_step + self._num_pred):
@@ -149,6 +151,7 @@ class VadDataset(data.Dataset):
         frame_batch = torch.stack(frame_batch, dim=0) # 大小为[_time_step+num_pred, c, _resize_height, _resize_width]
 
         object_batch = []
+        flow_batch = []
         for bbox in bboxes:
             # img
             one_object_batch = []
@@ -161,12 +164,29 @@ class VadDataset(data.Dataset):
             # print("object_batch.shape: ", object_batch.shape)
             object_batch.append(one_object_batch)
 
+        # # only the first frame objects
+        # for bbox in bboxes:
+        #     image = np_load_frame_roi(self.videos[video_name]['frame'][frame_name+self._time_step+self._num_pred-1],64,64,bbox)
+        #     if self.transform is not None:
+        #         image = self.transform(image)
+        #     object_batch.append(image)
+
+        for bbox in trans_bboxes:
+            # flow_ = trans_flow[:, bbox[0]:bbox[2], bbox[1]:bbox[3]]
+            flow_ = trans_flow[:, bbox[1]:bbox[3], bbox[0]:bbox[2]]
+            flow_ = F.interpolate(flow_.unsqueeze(0), size=([64, 64]), mode='bilinear', align_corners=False)
+            # print(flow_.shape)
+            flow_batch.append(flow_.squeeze(0))
+
         try: 
             object_batch = torch.stack(object_batch, dim=0)  # 大小为[目标个数, _time_step+num_pred, 图片的通道数, _resize_height, _resize_width]
-            return frame_batch, object_batch, trans_bboxes, trans_flow
+            flow_batch = torch.stack(flow_batch, dim=0)
+            # print(flow_batch.shape)
+            # print("object_batch.shape: ", object_batch.shape)
+            return frame_batch, object_batch, trans_bboxes, trans_flow, flow_batch
         except:
             # print("object is none")
-            return frame_batch, torch.tensor([]), trans_bboxes, trans_flow
+            return frame_batch, torch.tensor([]), trans_bboxes, trans_flow, torch.tensor([])
 
     def __len__(self):
         return len(self.samples)
@@ -188,7 +208,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     batch_size = 1
-    datadir = "/data0/lyx/VAD_datasets/ShanghaiTech/training/frames"
+    datadir = "/data0/lyx/VAD_datasets/avenue/training/frames"
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # flow 和 yolo 在线计算
@@ -197,7 +217,7 @@ if __name__ == "__main__":
     #                         resize_height=256, resize_width=256)
 
     # 使用保存的.npy
-    train_data = VadDataset(args,video_folder= datadir, bbox_folder = "./bboxes/ShanghaiTech/train", flow_folder="./flow/ShanghaiTech/train",
+    train_data = VadDataset(args,video_folder= datadir, bbox_folder = "./bboxes/avenue/train", flow_folder="/data0/lyx/VAD/vad-attention/flow/avenue/train",
                             transform=transforms.Compose([transforms.ToTensor()]),
                             resize_height=256, resize_width=256)
 
@@ -214,4 +234,24 @@ if __name__ == "__main__":
     #                         device = device)
 
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
+
+    for i, (frame_batch, object_batch, trans_bboxes, trans_flow, flow_batch) in enumerate(train_loader):
+        print(flow_batch.shape)
+        from flownet2.utils_flownet2 import flow_utils
+        for index, flow in enumerate(flow_batch[0]):
+            print(flow.shape)
+            flow_img = flow_utils.flow2img(flow.numpy().transpose(1,2,0))
+            plt.imsave('./tmp/flow-{}.jpg'.format(index), flow_img)
+            img = object_batch[0][index].numpy().transpose(1,2,0)
+            img = img*255
+            img = np.asarray(img, dtype=np.uint8)
+            cv2.imwrite('./tmp/rgb-{}.jpg'.format(index), img)
+        flow = flow_utils.flow2img(trans_flow.squeeze(0).numpy().transpose(1,2,0))
+        plt.imsave("./tmp/flow.jpg", flow)
+        plt.imsave("./tmp/flow_box.jpg", draw_bbox(flow,trans_bboxes))
+        frame_batch = frame_batch*255
+        cv2.imwrite("./tmp/frame.jpg", np.asarray(frame_batch[0][0].numpy().transpose(1,2,0), dtype=np.uint8))
+        
+        break
+
 

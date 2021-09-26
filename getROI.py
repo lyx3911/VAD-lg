@@ -233,10 +233,10 @@ def RoI(frames, dataset, model, device):
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--weight", default='yolov5/weights/yolov5s.pt')
-    parser.add_argument("--datadir", default="/data0/lyx/VAD_datasets/ped2/training/frames")
-    parser.add_argument("--datatype", default="ped2")
+    parser.add_argument("--datadir", default="/data0/lyx/VAD_datasets/ShanghaiTech/testing/frames")
+    parser.add_argument("--datatype", default="ShanghaiTech")
     parser.add_argument("--gpu", default=None)
-    parser.add_argument("--save_path", default="./bboxes/ped2/train/")
+    parser.add_argument("--save_path", default="./bboxes/ShanghaiTech/test/")
     args = parser.parse_args()
     
     # load yolov3 model
