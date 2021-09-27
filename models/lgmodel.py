@@ -19,6 +19,10 @@ def get_norm_layer(norm_type='instance'):
         norm_layer = functools.partial(nn.BatchNorm2d, affine=True, track_running_stats=True)
     elif norm_type == 'instance':
         norm_layer = functools.partial(nn.InstanceNorm2d, affine=False, track_running_stats=False)
+    elif norm_type == 'batch3d':
+         norm_layer = functools.partial(nn.BatchNorm3d, affine=True, track_running_stats=True)
+    elif norm_type == 'instance3d':
+        norm_layer = functools.partial(nn.InstanceNorm3d, affine=False, track_running_stats=False)
     elif norm_type == 'none':
         def norm_layer(x):
             return Identity()
@@ -273,8 +277,8 @@ class ResnetAttentionGenerator(nn.Module):
         return out, flow_out
 
 class C3DAttentionGenerator(nn.Module):
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6,
-                 padding_type='reflect', step=4):
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm3d, use_dropout=False, n_blocks=6,
+                 padding_type='zero', step=4):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -289,29 +293,31 @@ class C3DAttentionGenerator(nn.Module):
         assert (n_blocks >= 0)
         super(C3DAttentionGenerator, self).__init__()
         if type(norm_layer) == functools.partial:
-            use_bias = norm_layer.func == nn.InstanceNorm2d
+            use_bias = norm_layer.func == nn.InstanceNorm3d
         else:
-            use_bias = norm_layer == nn.InstanceNorm2d
+            use_bias = norm_layer == nn.InstanceNorm3d
 
-        model = [
-            nn.Conv3d(3, ngf, kernel_size=(3,3,3), padding=(1,1,1)),
-            nn.ReLU(True),
-            nn.Conv3d(ngf,ngf,kernel_size=(3,3,3),padding=(1,1,1)),
-            nn.ReLU(True),
-            nn.Conv3d(ngf, ngf, kernel_size=(3,3,3),padding=(1,1,1)),
-            nn.ReLU(True),
-        ]
+        model = [nn.Conv3d(input_nc, ngf, kernel_size=(3,3,3), padding=(1,1,1), bias=use_bias),
+                norm_layer(ngf),
+                nn.ReLU(True)]
 
         n_downsampling = 2
         for i in range(n_downsampling):  # add downsampling layers
             mult = 2 ** i
             model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=(1,2,2), padding=1, bias=use_bias),
+                      norm_layer(ngf * mult * 2),
                       nn.ReLU(True)]
+        
+        mult = 2**n_downsampling
+        for i in range(n_blocks):
+            model += [Resnet3dBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
+                                  use_bias=use_bias),
+                    nn.ReLU(True)]
 
-        # de_model = [nn.Conv2d(ngf * mult, ngf * mult, kernel_size=3, padding=1, bias=use_bias),
-        #             norm_layer(ngf * mult),
-        #             nn.ReLU(True)]
-        de_model = []
+        norm_layer = nn.BatchNorm2d
+        de_model = [nn.Conv2d(ngf * mult, ngf * mult, kernel_size=3, padding=1, bias=use_bias),
+                    norm_layer(ngf * mult),
+                    nn.ReLU(True)]
 
         for i in range(n_downsampling):  # add upsampling layers
             mult = 2 ** (n_downsampling - i)
@@ -420,7 +426,7 @@ class C3DAttentionGenerator(nn.Module):
         # print("attention_map.shape:", attention_map.shape)
         # print("frame_feat.shape", frame_feat.shape)
         z = attention_map * frame_feat
-        # print("z.shape: ",z.shape)
+        # print("z.shape: ",z.shape) #[1, 256, 64, 64]
 
         # # 对比实验
         # z = frame_feat
@@ -491,6 +497,48 @@ class ResnetBlock(nn.Module):
         return out
 
 
+class Resnet3dBlock(nn.Module):
+    def __init__(self, dim, padding_type, norm_layer, use_dropout, use_bias):
+
+        super(Resnet3dBlock, self).__init__()
+        self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
+
+    def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
+        
+        padding_type = 'zero'
+        conv_block = []
+        p = 0
+        if padding_type == 'reflect':
+            conv_block += [nn.ReflectionPad2d(1)]
+        elif padding_type == 'replicate':
+            conv_block += [nn.ReplicationPad2d(1)]
+        elif padding_type == 'zero':
+            p = 1
+        else:
+            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
+
+        conv_block += [nn.Conv3d(dim, dim, kernel_size=3, padding=p, bias=use_bias), norm_layer(dim), nn.ReLU(True)]
+        if use_dropout:
+            conv_block += [nn.Dropout(0.5)]
+
+        p = 0
+        if padding_type == 'reflect':
+            conv_block += [nn.ReflectionPad2d(1)]
+        elif padding_type == 'replicate':
+            conv_block += [nn.ReplicationPad2d(1)]
+        elif padding_type == 'zero':
+            p = 1
+        else:
+            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
+        conv_block += [nn.Conv3d(dim, dim, kernel_size=3, padding=p, bias=use_bias), norm_layer(dim)]
+
+        return nn.Sequential(*conv_block)
+
+    def forward(self, x):
+        """Forward function (with skip connections)"""
+        out = x + self.conv_block(x)  # add skip connections
+        return out
+        
 class FlowFeatureExtractor(nn.Module):
     """Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
 

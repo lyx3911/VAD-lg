@@ -101,7 +101,7 @@ def train(config, weight):
     ngf = 64
     # netG = 'resnet_6blocks_attention'
     netG = "C3D_attention"
-    norm = 'instance'
+    norm = 'instance3d'
     dropout = True
     init_type = 'normal'
     init_gain = 0.02
