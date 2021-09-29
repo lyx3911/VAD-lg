@@ -58,7 +58,8 @@ def init_weights(net, init_type='normal', init_gain=0.02):
             if hasattr(m, 'bias') and m.bias is not None:
                 init.constant_(m.bias.data, 0.0)
         elif classname.find(
-                'BatchNorm2d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
+                'BatchNorm2d') != -1 or classname.find('BatchNorm3d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
+            # print("BatchNorm Layer's weight is not a matrix; only normal distribution applies.")
             init.normal_(m.weight.data, 1.0, init_gain)
             init.constant_(m.bias.data, 0.0)
 
@@ -314,6 +315,9 @@ class C3DAttentionGenerator(nn.Module):
                                   use_bias=use_bias),
                     nn.ReLU(True)]
 
+        model += [nn.Conv3d(ngf*mult, ngf*mult, kernel_size=(4,1,1), stride=1,bias=use_bias),
+                    nn.ReLU(True)]
+
         norm_layer = nn.BatchNorm2d
         de_model = [nn.Conv2d(ngf * mult, ngf * mult, kernel_size=3, padding=1, bias=use_bias),
                     norm_layer(ngf * mult),
@@ -396,13 +400,15 @@ class C3DAttentionGenerator(nn.Module):
         # print("objects.shape: ",objects.shape)
 
         frame_feat = self.model(frames)    
-        # print("frame_feat.shape", frame_feat.shape) # [1, 256, 4, 64, 64]
-        frame_feat = torch.mean(frame_feat, dim=2)# [1, 256, 64, 64]
+        # print("frame_feat.shape", frame_feat.shape) # [bs=1, c=256, 1, h=64, w=64]
+        frame_feat = frame_feat.squeeze(2) #[bs=1,c=256, h=64, w=64]
+        # frame_feat = torch.mean(frame_feat, dim=2)# [1, 256, 64, 64] # mixed 
         # print(frame_feat.shape) #[256, 4096]
 
-        object_feat = self.model(objects) # [N, 256, 4, 16, 16]
+        object_feat = self.model(objects) # [N, 256, 1, 16, 16]
+        object_feat = object_feat.squeeze(2)
         # print("object_feat.shape: ", object_feat.shape) #[N, 256, 4, 16, 16]
-        object_feat = torch.mean(object_feat, dim=2) # [N, 256, 16, 16]
+        # object_feat = torch.mean(object_feat, dim=2) # [N, 256, 16, 16]
         object_feat = self.GAP(object_feat).view(object_feat.shape[0], object_feat.shape[1]) # [N, 256]
         # print("object_feat.shape: ", object_feat.shape)
 
@@ -607,3 +613,4 @@ class FlowFeatureExtractor(nn.Module):
         feat = self.model(input)    # z: (N * T) x (ngf * 2 ** n_downsampling) x h' x w'
         out =self.demodel(feat) 
         return feat, out
+

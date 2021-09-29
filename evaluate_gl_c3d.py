@@ -89,15 +89,15 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
         # if dataset == "ShanghaiTech":
         #     psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
 
-        if dataset == "ped2" or dataset == "ShanghaiTech": 
+        if dataset == "ped2" or dataset == "ShanghaiTech" or dataset == "avenue": 
             anomaly_score_total_list += utils.anomaly_score_list(psnr_list[video_name])
-        elif dataset == "avenue":
-            print(len(anomaly_score_total_list))
-            print(len(psnr_list[video_name]))    
-            anomaly_score_total_list += psnr_list[video_name]
+        # elif dataset == "avenue":
+        #     print(len(anomaly_score_total_list))
+        #     print(len(psnr_list[video_name]))    
+        #     anomaly_score_total_list += psnr_list[video_name]
 
-    if dataset == "avenue":
-        anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
+    # if dataset == "avenue":
+    #     anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
 
     anomaly_score_total_list = np.asarray(anomaly_score_total_list)    
     frame_AUC = utils.AUC(anomaly_score_total_list, np.expand_dims(1 - labels_list, 0))
@@ -110,8 +110,8 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--datadir", default="../../VAD_datasets/ped2/testing/frames/")
-    parser.add_argument("--dataset", default="ped2")
+    parser.add_argument("--datadir", default="/data0/lyx/VAD_datasets/avenue/testing/frames/")
+    parser.add_argument("--dataset", default="avenue")
     parser.add_argument('--gpu', default='0')
     parser.add_argument("--weight", default=None)    
     # for flownet2, no need to modify
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # test data:
     test_folder = args.datadir
     bbox_folder = "./bboxes/{}/test".format(args.dataset)
-    flow_folder = "./flow/{}/test".format(args.dataset)
+    flow_folder = "/data0/lyx/VAD/vad-attention/flow/{}/test/".format(args.dataset)
     dataset = args.dataset
 
 
@@ -146,21 +146,22 @@ if __name__ == "__main__":
     device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
     
     # generator.load_state_dict(torch.load(weight_path))
+    netG = "C3D_attention"
     ngf = 64
-    netG = 'resnet_6blocks_attention'
-    norm = 'instance'
-    no_dropout = False
+    norm = 'instance3d'
+    dropout = True
     init_type = 'normal'
     init_gain = 0.02
     gpu_ids = []
-    generator = define_G(3, 3, ngf, netG, norm, not no_dropout, init_type, init_gain, gpu_ids)
+    generator = define_G(netG, 3, 3, ngf=ngf,norm=norm, use_dropout=dropout, 
+                    init_type=init_type, init_gain=init_gain, gpu_ids=gpu_ids)
     
     weight = torch.load(weight_path)
     generator.load_state_dict(weight, strict=False)
     generator.cuda()
     # print(generator)
 
-    labels = scipy.io.loadmat('./data/{}_frame_labels.mat'.format(dataset))
+    labels = scipy.io.loadmat('/data0/lyx/VAD/vad-attention/data/{}_frame_labels.mat'.format(dataset))
    
     # init
     videos = OrderedDict()
@@ -181,3 +182,4 @@ if __name__ == "__main__":
 
     frame_AUC , psnr_list = ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset = dataset, device = device) 
     print(frame_AUC)
+    np.save("tmp/aveune_psnrlist.npy", psnr_list)
