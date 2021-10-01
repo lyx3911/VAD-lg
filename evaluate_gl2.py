@@ -66,7 +66,7 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
 
         if min(objects.shape) != 0:
             objects = objects.cuda()
-            outputs, flow_out = generator(input, objects[:,:,:-1], rois, objects_flow)
+            outputs, object_out, flow_out = generator(input, objects, rois, objects_flow)
             mse_imgs = object_loss((outputs + 1) / 2, (target + 1) / 2, flow, bboxes).item()
             psnr_list[ sorted(videos.keys())[video_num] ].append(utils.psnr(mse_imgs))
         else:
@@ -89,15 +89,15 @@ def ObjectLoss_evaluate(test_dataloader, generator, labels_list, videos, dataset
         # if dataset == "ShanghaiTech":
         #     psnr_list[video_name] = scipy.signal.savgol_filter(psnr_list[video_name], 53, 3)
 
-        if dataset == "ped2" or dataset == "ShanghaiTech" or datasets == "avenue": 
+        if dataset == "ped2" or dataset == "ShanghaiTech": 
             anomaly_score_total_list += utils.anomaly_score_list(psnr_list[video_name])
-        # elif dataset == "avenue":
-        #     print(len(anomaly_score_total_list))
-        #     print(len(psnr_list[video_name]))    
-        #     anomaly_score_total_list += psnr_list[video_name]
+        elif dataset == "avenue":
+            print(len(anomaly_score_total_list))
+            print(len(psnr_list[video_name]))    
+            anomaly_score_total_list += psnr_list[video_name]
 
-    # if dataset == "avenue":
-    #     anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
+    if dataset == "avenue":
+        anomaly_score_total_list = utils.anomaly_score_list(anomaly_score_total_list)
 
     anomaly_score_total_list = np.asarray(anomaly_score_total_list)    
     frame_AUC = utils.AUC(anomaly_score_total_list, np.expand_dims(1 - labels_list, 0))
